@@ -1,0 +1,165 @@
+$TileSize: 30px;
+
+.App {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+}
+
+.relative {
+  position: relative;
+}
+
+.grid, .overlay {
+  display: flex;
+  flex-direction: column;
+  .row {
+    display: flex;
+    flex-direction: row;
+  }
+}
+
+.overlay-grid {
+  position: absolute;
+  background-color: blue;
+}
+
+.tile {
+  align-items: center;
+  color: #fafafa;
+  display: flex;
+  border-radius: 5px;
+  font-size: 13px;
+  height: $TileSize;
+  justify-content: center;
+  margin: 1px;
+  position: relative;
+  user-select: none;
+  width: $TileSize;
+
+  .score {
+    bottom: 3px;
+    position: absolute;
+    font-size: 9px;
+    right: 3px;
+  }
+
+  &.double_letter {
+    background-color: #1181be;
+  }
+  &.double_word {
+    background-color: #b3554d;
+  }
+  &.normal {
+    background-color: #cccccc;
+  }
+  &.start {
+    background-color: #78569a;
+  }
+  &.triple_letter {
+    background-color: #6ea256;
+  }
+  &.triple_word {
+    background-color: #e7962f;
+  }
+  &.placement {
+    background-color: #f4aa3c;
+    color: #000000;
+    font-size: 16px;
+  }
+  &.selected {
+    background-color: #ffffff;
+    opacity: 0.5;
+  }
+  &.cross-check {
+    box-shadow: inset 0px 0px 4px 2px #ffffff;
+  }
+}
+
+.grabbable  {
+  >.tile {
+    &.placement {
+      cursor: move;
+      //box-shadow: inset 0 0 0 1px #fd6f1d;
+      //box-shadow: inset 0 0 0 2px #f4d23c;
+    }
+  }
+}
+
+.emphasis {
+  font-weight: bold;
+}
+
+.players {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  .item {
+    background-color: #323232;
+    border-radius: 10px;
+    margin: 5px;
+    padding: 8px;
+    font-size: 12px;
+    .name {
+      color: #ffffff;
+    }
+    .score {
+      color: #cccccc;
+    }
+    &.selected {
+      background-color: #555555;
+      .name, .score {
+        font-weight: bold;
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+.rack, .login {
+  background-color: #d0d0d0;
+  border-radius: 5px;
+  padding: 5px;
+}
+
+.login {
+  input[type=text] {
+    border: 2px solid #414141;
+    border-radius: 4px;
+  }
+  td {
+    padding: 2px;
+  }
+}
+
+.rack {
+  display: flex;
+  flex-direction: row;
+  min-height: $TileSize;
+  min-width: $TileSize;
+}
+
+button {
+  background-color: #0099ff;
+  border-radius: 20px;
+  border-style: none;
+  color: #ffffff;
+  margin-top: 20px;
+  padding: 10px;
+  cursor: pointer;
+  &:hover {
+    background-color: #0080e3;
+  }
+  &:active {
+    background-color: #006aca;
+  }
+  &:disabled {
+    background-color: #777777;
+  }
+}
