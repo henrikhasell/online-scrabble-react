@@ -9,17 +9,74 @@ import Rack from '../Rack/Rack';
 import DraggedTile, {DraggedTileProps} from '../DraggedTile/DraggedTile';
 import GridOverlay, { GridOverlayProps } from '../Grid/GridOverlay';
 import getRackIndex from '../Grid/getRackIndex';
+import GridModel from '../Grid/GridModel';
+import LoginDetails from './LoginDetails';
+import PlayerInfo from './PlayerInfo';
+
+interface Placement {
+  horizontal: boolean;
+  letters: {value: string; wild: boolean}[];
+  x: number;
+  y: number;
+};
+
+interface ScoredPlacement extends Placement {
+  score: number;
+};
+
+interface GetGameResponse {
+  grid: GridModel;
+  players: {name: string, score: number}[];
+  previous_placement?: {placement: ScoredPlacement; player: string;};
+  state: "waiting_to_start" | "in_progress" |  "completed";
+  turn?: string;
+};
+
+const getGame = async (game: string) => {
+  const response = await fetch(`/game/${game}`, {method: "GET"});
+
+  if (!response.ok) {
+    throw Error("Unexpected response from server.");
+  }
+
+  return await response.json() as GetGameResponse;
+}
+
+const createGame = async (game: string) => {
+  const response = await fetch(`/game/${game}`, {method: "POST"});
+  const responseJson = await response.json();
+
+  return responseJson.message;
+};
+
+const joinGame = async (game: string) => {
+  const response = await fetch(`/game/${game}/join`, {method: "PUT"});
+  const responseJson = await response.json();
+
+  return responseJson.message;
+};
+
+const startGame = async (game: string) => {
+  const response = await fetch(`/game/${game}/start`, {method: "PUT"});
+  const responseJson = await response.json();
+
+  return responseJson.message;
+};
 
 const App: React.FC = () => {
+  const [loginDetails, setLoginDetails] = useState<LoginDetails | null>(null);
   const [draggedTile, setDraggedTile] = useState<DraggedTileProps | null>(null);
-  const [placements, setPlacements] = useState<GridOverlayProps['placements']>({"1_1": {value:"A", wild: false, x: 2, y: 1}});
-  const [rack, setRack] = useState<string[]>(["B", "C", "D", "E", "F", "G", "H"]);
+  const [grid, setGrid] = useState<GridModel>(empty_grid);
+  const [placements, setPlacements] = useState<GridOverlayProps['placements']>({});
+  const [rack, setRack] = useState<string[] | null>(null);
+  const [players, setPlayers] = useState<{name: string, score: number}[]>([]);
+  const [turn, setTurn] = useState<string | undefined>();
 
   const grid_ref = useRef<HTMLDivElement>(null);
   const rack_ref = useRef<HTMLDivElement>(null);
 
   const removeFromRack = (index: number, x: number, y: number) => {
-    if (draggedTile !== null) {
+    if (draggedTile !== null || rack === null) {
       return;
     }
 
@@ -28,20 +85,41 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    const getCoordinate = (screenX: number, screenY: number) => {
-      const {current} = grid_ref;
+    if (!loginDetails) {
+      return;
+    }
+  
+    const {game} = loginDetails;
 
+    createGame(game);
+
+    const myInterval = setInterval(async () => {
+      console.info(`Fetching ${game}`);
+      const response: GetGameResponse = await getGame(game);
+      setPlayers(response.players);
+      setGrid(response.grid);
+      setTurn(response.turn);
+    }, 1000);
+
+    return () => clearInterval(myInterval);
+  }, [loginDetails]);
+
+  useEffect(() => {
+
+    const _getGridCoordinate = (screenX: number, screenY: number) => {
+      const {current} = grid_ref;
+  
       if(!current) {
         return null;
       }
-
-      return getGridCoordinate(current, empty_grid.height, empty_grid.width, screenX, screenY);
+  
+      return getGridCoordinate(current, grid.height, grid.width, screenX, screenY);
     };
 
-    const getIndex = (screenX: number, screenY: number) => {
+    const _getRackIndex = (screenX: number, screenY: number) => {
       const {current} = rack_ref;
 
-      if(!current) {
+      if(!current || !rack) {
         return null;
       }
 
@@ -55,7 +133,7 @@ const App: React.FC = () => {
     }
 
     const onPointerDown = (event: PointerEvent) => {
-      const coordinate = getCoordinate(event.x, event.y);
+      const coordinate = _getGridCoordinate(event.x, event.y);
 
       if (coordinate) {
         const {x, y} = coordinate;
@@ -94,7 +172,7 @@ const App: React.FC = () => {
           }
         });
       }
-      else {
+      else if (rack !== null) {
         const {index} = origin;
         setRack([
           ...rack.slice(0, index), value, ...rack.slice(index)
@@ -107,8 +185,8 @@ const App: React.FC = () => {
         return;
       }
 
-      const coordinate = getCoordinate(event.x, event.y);
-      const index = getIndex(event.x, event.y);
+      const coordinate = _getGridCoordinate(event.x, event.y);
+      const index = _getRackIndex(event.x, event.y);
 
       if (coordinate !== null) {
         const {x, y} = coordinate;
@@ -122,7 +200,7 @@ const App: React.FC = () => {
           setPlacements({...placements, [index]: placmenet});
         }
       }
-      else if (index !== null) {
+      else if (index !== null && rack !== null) {
         setRack([
           ...rack.slice(0, index), draggedTile.value, ...rack.slice(index)
         ]);
@@ -141,26 +219,26 @@ const App: React.FC = () => {
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('pointerup', onPointerUp);
     };
-  }, [draggedTile, placements, rack]);
+  }, [draggedTile, grid, placements, rack]);
 
   const hover = draggedTile !== null;
 
   return (
     <div className="app">
-      <Navbar/>
+      <Navbar loginDetails={loginDetails} setLoginDetails={setLoginDetails}/>
       <Container fluid>
         <Row>
   
           <Col xl={3} className="bg-light">
-            Player List
+            <PlayerInfo players={players} turn={turn}/>
           </Col>
   
           <Col xl={6} className="app-col mt-2">
             <div className="rectangle">
               <div className="rectangle-content">
-                <GridDisplay {...empty_grid} hover={hover} grid_ref={grid_ref}/>
-                <GridOverlay {...empty_grid} hover={hover} placements={placements}/>
-                <Rack hover={draggedTile !== null} items={rack} rack_ref={rack_ref} removeFromRack={removeFromRack}/>
+                <GridDisplay {...grid} hover={hover} grid_ref={grid_ref}/>
+                <GridOverlay {...grid} hover={hover} placements={placements}/>
+                {rack !== null ? <Rack hover={draggedTile !== null} items={rack} rack_ref={rack_ref} removeFromRack={removeFromRack}/> : null}
               </div>
               {draggedTile ? <DraggedTile {...draggedTile}/> : null}
             </div>
